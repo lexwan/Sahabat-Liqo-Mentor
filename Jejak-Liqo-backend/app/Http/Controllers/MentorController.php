@@ -578,6 +578,48 @@ class MentorController extends Controller
         }
     }
 
+    public function updateGroup(Request $request, $groupId)
+    {
+        $request->validate([
+            'group_name' => 'required|string|max:255',
+            'description' => 'nullable|string'
+        ]);
+
+        try {
+            $mentorId = Auth::id();
+            
+            $group = \App\Models\Group::where('id', $groupId)
+                ->where('mentor_id', $mentorId)
+                ->first();
+
+            if (!$group) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Kelompok tidak ditemukan atau Anda tidak memiliki akses'
+                ], 404);
+            }
+
+            $group->update([
+                'group_name' => $request->group_name,
+                'description' => $request->description
+            ]);
+
+            $group->load('mentor.profile');
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Kelompok berhasil diperbarui',
+                'data' => $group
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal memperbarui kelompok',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function addMentees(Request $request, $groupId)
     {
         $request->validate([
@@ -638,39 +680,7 @@ class MentorController extends Controller
         }
     }
 
-    public function deleteMentee(Request $request, $menteeId)
-    {
-        try {
-            $mentorId = Auth::id();
-            $action = $request->query('action');
-            
-            // Find mentee and verify it belongs to mentor's group
-            $mentee = \App\Models\Mentee::whereHas('group', function($query) use ($mentorId) {
-                $query->where('mentor_id', $mentorId);
-            })->findOrFail($menteeId);
 
-            if ($action === 'remove') {
-                // Remove from group: set group_id to null
-                $mentee->update(['group_id' => null]);
-                $message = 'Mentee berhasil dikeluarkan dari kelompok';
-            } else {
-                // Soft delete
-                $mentee->delete();
-                $message = 'Mentee berhasil dihapus';
-            }
-
-            return response()->json([
-                'status' => 'success',
-                'message' => $message
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Gagal memproses mentee',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
 
     public function addExistingMenteesToGroup(Request $request, $groupId)
     {
@@ -744,6 +754,438 @@ class MentorController extends Controller
         }
     }
 
+    public function getMeetingDetail($meetingId)
+    {
+        try {
+            $mentorId = Auth::id();
+            
+            $meeting = \App\Models\Meeting::where('id', $meetingId)
+                ->where(function($query) use ($mentorId) {
+                    $query->where('mentor_id', $mentorId)
+                          ->orWhereHas('group', function($q) use ($mentorId) {
+                              $q->where('mentor_id', $mentorId);
+                          });
+                })
+                ->with(['group', 'attendances.mentee'])
+                ->first();
+
+            if (!$meeting) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Pertemuan tidak ditemukan'
+                ], 404);
+            }
+
+            // Get all mentees in the group with their attendance status
+            $mentees = $meeting->group->mentees->map(function($mentee) use ($meeting) {
+                $attendance = $meeting->attendances->where('mentee_id', $mentee->id)->first();
+                return [
+                    'id' => $mentee->id,
+                    'full_name' => $mentee->full_name,
+                    'nickname' => $mentee->nickname,
+                    'status' => $attendance ? strtolower($attendance->status) : 'tidak hadir'
+                ];
+            });
+
+            $result = [
+                'id' => $meeting->id,
+                'title' => $meeting->topic,
+                'group_name' => $meeting->group->group_name,
+                'group_created_at' => $meeting->group->created_at,
+                'meeting_date' => $meeting->meeting_date,
+                'location' => $meeting->place,
+                'type' => strtolower($meeting->meeting_type ?? 'offline'),
+                'created_at' => $meeting->created_at,
+                'photos' => $meeting->photos ? json_decode($meeting->photos, true) : [],
+                'mentees' => $mentees,
+                'attendance' => [
+                    'hadir' => $meeting->attendances->filter(function($att) { return strtolower($att->status) === 'hadir'; })->count(),
+                    'sakit' => $meeting->attendances->filter(function($att) { return strtolower($att->status) === 'sakit'; })->count(),
+                    'izin' => $meeting->attendances->filter(function($att) { return strtolower($att->status) === 'izin'; })->count(),
+                    'alpha' => $meeting->attendances->filter(function($att) { return strtolower($att->status) === 'alpha'; })->count(),
+                ]
+            ];
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengambil detail pertemuan'
+            ], 500);
+        }
+    }
+
+    public function getMeetings()
+    {
+        try {
+            $mentorId = Auth::id();
+            
+            // Get meetings directly by mentor_id or through groups
+            $meetings = \App\Models\Meeting::where('mentor_id', $mentorId)
+                ->orWhereHas('group', function($query) use ($mentorId) {
+                    $query->where('mentor_id', $mentorId);
+                })
+            ->with(['group', 'attendances'])
+            ->orderBy('meeting_date', 'desc')
+            ->get()
+            ->map(function($meeting) {
+                // Calculate attendance stats - case insensitive comparison
+                $attendanceStats = [
+                    'hadir' => $meeting->attendances->filter(function($att) { return strtolower($att->status) === 'hadir'; })->count(),
+                    'sakit' => $meeting->attendances->filter(function($att) { return strtolower($att->status) === 'sakit'; })->count(),
+                    'izin' => $meeting->attendances->filter(function($att) { return strtolower($att->status) === 'izin'; })->count(),
+                    'alpha' => $meeting->attendances->filter(function($att) { return strtolower($att->status) === 'alpha'; })->count(),
+                ];
+
+                return [
+                    'id' => $meeting->id,
+                    'title' => $meeting->topic,
+                    'group_name' => $meeting->group ? $meeting->group->group_name : 'No Group',
+                    'meeting_date' => $meeting->meeting_date,
+                    'location' => $meeting->place,
+                    'type' => strtolower($meeting->meeting_type ?? 'offline'),
+                    'created_at' => $meeting->created_at,
+                    'attendance' => $attendanceStats
+                ];
+            });
+
+            // Calculate weekly stats based on created_at (Monday to Sunday)
+            $weekStart = now()->startOfWeek();
+            $weekEnd = now()->endOfWeek();
+            $weeklyTotal = $meetings->filter(function($meeting) use ($weekStart, $weekEnd) {
+                $createdAt = \Carbon\Carbon::parse($meeting['created_at']);
+                return $createdAt->between($weekStart, $weekEnd);
+            })->count();
+
+            $stats = [
+                'weeklyTotal' => $weeklyTotal
+            ];
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $meetings,
+                'stats' => $stats
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengambil data pertemuan'
+            ], 500);
+        }
+    }
+
+    public function deleteMeeting($meetingId)
+    {
+        try {
+            $mentorId = Auth::id();
+            
+            $meeting = \App\Models\Meeting::where('id', $meetingId)
+                ->where(function($query) use ($mentorId) {
+                    $query->where('mentor_id', $mentorId)
+                          ->orWhereHas('group', function($q) use ($mentorId) {
+                              $q->where('mentor_id', $mentorId);
+                          });
+                })
+                ->first();
+
+            if (!$meeting) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Pertemuan tidak ditemukan'
+                ], 404);
+            }
+
+            $meeting->delete();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Pertemuan berhasil dihapus'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal menghapus pertemuan'
+            ], 500);
+        }
+    }
+
+    public function getTrashedMeetings()
+    {
+        try {
+            $mentorId = Auth::id();
+            
+            $meetings = \App\Models\Meeting::onlyTrashed()
+                ->where(function($query) use ($mentorId) {
+                    $query->where('mentor_id', $mentorId)
+                          ->orWhereHas('group', function($q) use ($mentorId) {
+                              $q->where('mentor_id', $mentorId);
+                          });
+                })
+                ->with(['group'])
+                ->orderBy('deleted_at', 'desc')
+                ->get()
+                ->map(function($meeting) {
+                    return [
+                        'id' => $meeting->id,
+                        'title' => $meeting->topic,
+                        'group_name' => $meeting->group ? $meeting->group->group_name : 'No Group',
+                        'meeting_date' => $meeting->meeting_date,
+                        'location' => $meeting->place,
+                        'type' => strtolower($meeting->meeting_type ?? 'offline'),
+                        'deleted_at' => $meeting->deleted_at,
+                        'created_at' => $meeting->created_at
+                    ];
+                });
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $meetings
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengambil data pertemuan terhapus'
+            ], 500);
+        }
+    }
+
+    public function restoreMeeting($meetingId)
+    {
+        try {
+            $mentorId = Auth::id();
+            
+            $meeting = \App\Models\Meeting::onlyTrashed()
+                ->where('id', $meetingId)
+                ->where(function($query) use ($mentorId) {
+                    $query->where('mentor_id', $mentorId)
+                          ->orWhereHas('group', function($q) use ($mentorId) {
+                              $q->where('mentor_id', $mentorId);
+                          });
+                })
+                ->first();
+
+            if (!$meeting) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Pertemuan tidak ditemukan'
+                ], 404);
+            }
+
+            $meeting->restore();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Pertemuan berhasil dipulihkan'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal memulihkan pertemuan'
+            ], 500);
+        }
+    }
+
+    public function updateMeeting(Request $request, $meetingId)
+    {
+        try {
+            \Log::info('UpdateMeeting request data:', $request->all());
+            
+            $request->validate([
+                'topic' => 'required|string|max:255',
+                'meeting_date' => 'required|date',
+                'meeting_type' => 'required|in:offline,online,assignment',
+                'place' => 'required|string|max:255',
+                'notes' => 'nullable|string',
+                'existing_photos' => 'nullable|string',
+                'photos.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
+            ]);
+
+            $mentorId = Auth::id();
+            
+            $meeting = \App\Models\Meeting::where('id', $meetingId)
+                ->where(function($query) use ($mentorId) {
+                    $query->where('mentor_id', $mentorId)
+                          ->orWhereHas('group', function($q) use ($mentorId) {
+                              $q->where('mentor_id', $mentorId);
+                          });
+                })
+                ->first();
+
+            if (!$meeting) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Pertemuan tidak ditemukan'
+                ], 404);
+            }
+
+            // Handle photos
+            $photoUrls = [];
+            
+            // Delete removed photos from storage
+            $oldPhotos = $meeting->photos ? json_decode($meeting->photos, true) : [];
+            $existingPhotos = $request->existing_photos ? json_decode($request->existing_photos, true) : [];
+            
+            if (is_array($oldPhotos) && is_array($existingPhotos)) {
+                $deletedPhotos = array_diff($oldPhotos, $existingPhotos);
+                foreach ($deletedPhotos as $photoUrl) {
+                    $path = str_replace(asset('storage/'), '', $photoUrl);
+                    \Storage::disk('public')->delete($path);
+                }
+            }
+            
+            // Keep existing photos that weren't deleted
+            if (is_array($existingPhotos)) {
+                $photoUrls = array_merge($photoUrls, $existingPhotos);
+            }
+            
+            // Add new photos
+            if ($request->hasFile('photos')) {
+                foreach ($request->file('photos') as $photo) {
+                    $path = $photo->store('meeting_photos', 'public');
+                    $photoUrls[] = asset('storage/' . $path);
+                }
+            }
+
+            $meeting->update([
+                'topic' => $request->topic,
+                'meeting_date' => $request->meeting_date,
+                'meeting_type' => $request->meeting_type,
+                'place' => $request->place,
+                'notes' => $request->notes,
+                'photos' => !empty($photoUrls) ? json_encode($photoUrls) : null
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Pertemuan berhasil diperbarui',
+                'data' => $meeting
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Validation error:', $e->errors());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Data tidak valid',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Update meeting error:', ['message' => $e->getMessage()]);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal memperbarui pertemuan',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function createMeeting(Request $request)
+    {
+        try {
+            $request->validate([
+                'group_id' => 'required|exists:groups,id',
+                'topic' => 'required|string|max:255',
+                'meeting_date' => 'required|date',
+                'meeting_type' => 'required|in:offline,online,assignment',
+                'place' => 'required|string|max:255',
+                'notes' => 'nullable|string',
+                'photos.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:10240',
+                'attendances' => 'nullable|array',
+                'attendances.*.mentee_id' => 'required_with:attendances|integer',
+                'attendances.*.status' => 'required_with:attendances|in:hadir,sakit,izin,alpha',
+                'attendances.*.note' => 'nullable|string'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Data tidak valid',
+                'errors' => $e->errors()
+            ], 422);
+        }
+
+        try {
+            $mentorId = Auth::id();
+            
+            // Verify group belongs to mentor
+            $group = \App\Models\Group::where('id', $request->group_id)
+                ->where('mentor_id', $mentorId)
+                ->first();
+
+            if (!$group) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Kelompok tidak ditemukan atau Anda tidak memiliki akses'
+                ], 404);
+            }
+
+            DB::beginTransaction();
+
+            // Handle photo uploads
+            $photoUrls = [];
+            if ($request->hasFile('photos')) {
+                foreach ($request->file('photos') as $photo) {
+                    $path = $photo->store('meeting_photos', 'public');
+                    $photoUrls[] = asset('storage/' . $path);
+                }
+            }
+
+            // Create meeting
+            $meeting = \App\Models\Meeting::create([
+                'group_id' => $request->group_id,
+                'mentor_id' => $mentorId,
+                'topic' => $request->topic,
+                'meeting_date' => $request->meeting_date,
+                'meeting_type' => $request->meeting_type,
+                'place' => $request->place,
+                'notes' => $request->notes,
+                'photos' => !empty($photoUrls) ? json_encode($photoUrls) : null
+            ]);
+
+            // Create attendance records if provided
+            if ($request->attendances && is_array($request->attendances)) {
+                foreach ($request->attendances as $attendance) {
+                    // Verify mentee exists and belongs to the group
+                    $mentee = \App\Models\Mentee::where('id', $attendance['mentee_id'])
+                        ->where('group_id', $request->group_id)
+                        ->first();
+                    
+                    if ($mentee) {
+                        \App\Models\Attendance::create([
+                            'meeting_id' => $meeting->id,
+                            'mentee_id' => $attendance['mentee_id'],
+                            'status' => $attendance['status'],
+                            'notes' => $attendance['note'] ?? null
+                        ]);
+                    }
+                }
+            }
+
+            DB::commit();
+
+            $meeting->load(['group', 'attendances.mentee']);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Pertemuan berhasil dibuat',
+                'data' => $meeting
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            \Log::error('Error creating meeting: ' . $e->getMessage(), [
+                'request_data' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal membuat pertemuan',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
+        }
+    }
+
     public function moveMentees(Request $request, $groupId)
     {
         try {
@@ -791,6 +1233,40 @@ class MentorController extends Controller
                 'status' => 'error',
                 'message' => 'Gagal memindahkan mentee ke kelompok',
                 'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    public function getProfile()
+    {
+        try {
+            $user = Auth::user();
+            $user->load('profile');
+            
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'profile' => $user->profile ? [
+                        'name' => $user->profile->full_name,
+                        'nickname' => $user->profile->nickname,
+                        'phone_number' => $user->profile->phone_number,
+                        'gender' => $user->profile->gender,
+                        'birth_date' => $user->profile->birth_date,
+                        'address' => $user->profile->address,
+                        'job' => $user->profile->job,
+                        'hobby' => $user->profile->hobby,
+                        'status' => $user->profile->status,
+                        'profile_picture' => $user->profile->profile_picture
+                    ] : null
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengambil data profile'
             ], 500);
         }
     }

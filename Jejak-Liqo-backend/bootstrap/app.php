@@ -27,10 +27,20 @@ return Application::configure(basePath: dirname(__DIR__))
         // 2. Tambahkan ke group API agar otomatis diterapkan ke semua route api
         $middleware->api(prepend: [
             CorsMiddleware::class,
+            \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
+            \Illuminate\Foundation\Http\Middleware\TrimStrings::class,
+        ]);
+        
+        $middleware->web(append: [
+            \Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests::class,
         ]);
         
         $middleware->api(append: [
             EnsureTokenNotExpired::class,
+        ]);
+        
+        $middleware->validateCsrfTokens(except: [
+            'api/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

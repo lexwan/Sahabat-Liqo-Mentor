@@ -2,8 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import Layout from "../../../components/mentor/Layout";
-import { getMentorGroupDetail, removeMenteeFromGroup } from "../../../api/mentor"
-import { User, Calendar, Users, ArrowLeft, MapPin, Phone, Search, Settings, Edit, Trash2, Plus, BookOpen, Eye, X, UserMinus } from "lucide-react";
+import EditGroupModal from "../../../components/mentor/EditGroupModal";
+import { getMentorGroupDetail } from "../../../api/mentor"
+import { User, Calendar, Users, ArrowLeft, MapPin, Phone, Search, Settings, Edit, Trash2, Plus, BookOpen, Eye, X, UserX } from "lucide-react";
 
 const KelolaKelompok = () => {
   const { id } = useParams();
@@ -15,6 +16,8 @@ const KelolaKelompok = () => {
   const [selectedMentee, setSelectedMentee] = useState(null);
   const [showMenteeModal, setShowMenteeModal] = useState(false);
   const [showAddMenteeDropdown, setShowAddMenteeDropdown] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editField, setEditField] = useState(null);
 
 
   const getGroupHeaderImage = (groupId) => {
@@ -56,39 +59,25 @@ const KelolaKelompok = () => {
     });
   };
 
-  const handleRemoveMentee = async () => {
-    if (!selectedMentee) return;
+  const handleEditGroup = (field = null) => {
+    const fieldName = field === 'name' ? 'nama kelompok' : field === 'description' ? 'deskripsi' : 'kelompok';
     
-    const confirmRemove = () => {
-      toast.promise(
-        removeMenteeFromGroup(selectedMentee.id),
-        {
-          loading: `Mengeluarkan ${selectedMentee.full_name} dari kelompok...`,
-          success: `${selectedMentee.full_name} berhasil dikeluarkan dari kelompok`,
-          error: 'Gagal mengeluarkan mentee dari kelompok'
-        }
-      ).then(() => {
-        setShowMenteeModal(false);
-        fetchGroupDetail();
-      }).catch((error) => {
-        console.error('Error removing mentee from group:', error);
-      });
-    };
-
     toast((t) => (
       <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col space-y-3">
-          <span className="font-medium text-gray-900 dark:text-white">Keluarkan {selectedMentee.full_name} dari kelompok?</span>
-          <span className="text-sm text-gray-600 dark:text-gray-400">Mentee akan dihapus dari kelompok ini</span>
+          <span className="font-medium text-gray-900 dark:text-white">
+            Apakah Anda yakin ingin mengedit {fieldName}?
+          </span>
           <div className="flex space-x-2 justify-center">
             <button
               onClick={() => {
                 toast.dismiss(t.id);
-                confirmRemove();
+                setEditField(field);
+                setShowEditModal(true);
               }}
-              className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 transition-colors"
+              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm transition-colors"
             >
-              Ya, Keluarkan
+              Ya, Edit
             </button>
             <button
               onClick={() => toast.dismiss(t.id)}
@@ -100,7 +89,7 @@ const KelolaKelompok = () => {
         </div>
       </div>
     ), {
-      duration: 10000,
+      duration: Infinity,
       position: 'top-center',
       style: {
         background: 'transparent',
@@ -109,7 +98,83 @@ const KelolaKelompok = () => {
     });
   };
 
+  const handleGroupUpdate = (updatedGroup) => {
+    setGroup(updatedGroup);
+  };
 
+  const handleToggleMenteeStatus = async () => {
+    if (!selectedMentee) return;
+    
+    const newStatus = selectedMentee.status === 'Aktif' ? 'Non-Aktif' : 'Aktif';
+    const action = selectedMentee.status === 'Aktif' ? 'nonaktifkan' : 'aktifkan';
+    
+    const confirmToggle = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/mentees/${selectedMentee.id}/status`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ status: newStatus })
+        });
+        
+        if (response.ok) {
+          const toastId = toast.success(`${selectedMentee.full_name} berhasil di${action}`, { duration: 2000 });
+          setTimeout(() => toast.dismiss(toastId), 2000);
+          setShowMenteeModal(false);
+          fetchGroupDetail();
+        } else {
+          throw new Error('Failed to update status');
+        }
+      } catch (error) {
+        console.error('Error updating mentee status:', error);
+        const toastId = toast.error(`Gagal ${action} mentee`, { duration: 2000 });
+        setTimeout(() => toast.dismiss(toastId), 2000);
+      }
+    };
+
+    toast((t) => (
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col space-y-3">
+          <span className="font-medium text-gray-900 dark:text-white">
+            {action === 'nonaktifkan' ? 'Nonaktifkan' : 'Aktifkan'} {selectedMentee.full_name}?
+          </span>
+          <span className="text-sm text-gray-600 dark:text-gray-400">
+            Status mentee akan diubah menjadi {newStatus}
+          </span>
+          <div className="flex space-x-2 justify-center">
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                confirmToggle();
+              }}
+              className={`px-4 py-2 text-white rounded-lg text-sm transition-colors ${
+                action === 'nonaktifkan' 
+                  ? 'bg-red-500 hover:bg-red-600' 
+                  : 'bg-green-500 hover:bg-green-600'
+              }`}
+            >
+              Ya, {action === 'nonaktifkan' ? 'Nonaktifkan' : 'Aktifkan'}
+            </button>
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+            >
+              Batal
+            </button>
+          </div>
+        </div>
+      </div>
+    ), {
+      duration: 2000,
+      position: 'top-center',
+      style: {
+        background: 'transparent',
+        boxShadow: 'none'
+      }
+    });
+  };
 
   if (loading) {
     return (
@@ -378,21 +443,32 @@ const KelolaKelompok = () => {
 
 
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Daftar Mentee ({group.mentees?.filter(mentee => 
-                  mentee.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  mentee.nickname?.toLowerCase().includes(searchQuery.toLowerCase())
-                ).length || 0})
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Daftar Mentee ({group.mentees?.filter(mentee => 
+                    (mentee.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    mentee.nickname?.toLowerCase().includes(searchQuery.toLowerCase())) &&
+                    mentee.status === 'Aktif'
+                  ).length || 0})
+                </h2>
+                <button
+                  onClick={() => navigate(`/mentor/kelompok/${id}/mentee-nonaktif`)}
+                  className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white rounded-lg transition-colors border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
+                >
+                  Mentee Non-Aktif
+                </button>
+              </div>
             
             {group.mentees?.filter(mentee => 
-              mentee.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              mentee.nickname?.toLowerCase().includes(searchQuery.toLowerCase())
+              (mentee.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              mentee.nickname?.toLowerCase().includes(searchQuery.toLowerCase())) &&
+              mentee.status === 'Aktif'
             ).length > 0 ? (
               <div className="grid grid-cols-1 gap-4">
                 {group.mentees.filter(mentee => 
-                  mentee.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  mentee.nickname?.toLowerCase().includes(searchQuery.toLowerCase())
+                  (mentee.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  mentee.nickname?.toLowerCase().includes(searchQuery.toLowerCase())) &&
+                  mentee.status === 'Aktif'
                 ).map((mentee) => (
                   <div
                     key={mentee.id}
@@ -455,7 +531,10 @@ const KelolaKelompok = () => {
                   <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Nama Kelompok</h3>
                   <p className="text-gray-900 dark:text-white">{group.group_name}</p>
                 </div>
-                <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
+                <button 
+                  onClick={() => handleEditGroup('name')}
+                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                >
                   <Edit size={16} />
                 </button>
               </div>
@@ -466,7 +545,10 @@ const KelolaKelompok = () => {
                   <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Deskripsi</h3>
                   <p className="text-gray-900 dark:text-white">{group.description || 'Tidak ada deskripsi'}</p>
                 </div>
-                <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
+                <button 
+                  onClick={() => handleEditGroup('description')}
+                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                >
                   <Edit size={16} />
                 </button>
               </div>
@@ -488,9 +570,9 @@ const KelolaKelompok = () => {
                   <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Dibuat</h3>
                   <p className="text-gray-900 dark:text-white">{formatDate(group.created_at)}</p>
                 </div>
-                <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
+                <div className="p-2 text-gray-300 dark:text-gray-600 cursor-not-allowed">
                   <Edit size={16} />
-                </button>
+                </div>
               </div>
 
 
@@ -499,9 +581,9 @@ const KelolaKelompok = () => {
                   <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Jumlah Mentee</h3>
                   <p className="text-gray-900 dark:text-white">{group.mentees?.length || 0} orang</p>
                 </div>
-                <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
+                <div className="p-2 text-gray-300 dark:text-gray-600 cursor-not-allowed">
                   <Edit size={16} />
-                </button>
+                </div>
               </div>
 
 
@@ -543,11 +625,22 @@ const KelolaKelompok = () => {
               </h2>
               <div className="flex items-center space-x-1 sm:space-x-2">
                 <button
-                  onClick={handleRemoveMentee}
-                  className="p-1.5 sm:p-2 text-orange-400 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Keluarkan dari Kelompok"
+                  onClick={() => navigate(`/mentor/kelompok/${id}/edit-mentee/${selectedMentee.id}`)}
+                  className="p-1.5 sm:p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                  title="Edit Mentee"
                 >
-                  <UserMinus size={16} className="sm:w-5 sm:h-5" />
+                  <Edit size={16} className="sm:w-5 sm:h-5" />
+                </button>
+                <button
+                  onClick={handleToggleMenteeStatus}
+                  className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
+                    selectedMentee.status === 'Aktif' 
+                      ? 'text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
+                      : 'text-green-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'
+                  }`}
+                  title={selectedMentee.status === 'Aktif' ? 'Nonaktifkan Mentee' : 'Aktifkan Mentee'}
+                >
+                  <User size={16} className="sm:w-5 sm:h-5" />
                 </button>
                 <button
                   onClick={() => setShowMenteeModal(false)}
@@ -617,6 +710,15 @@ const KelolaKelompok = () => {
           </div>
         </div>
       )}
+
+      {/* Edit Group Modal */}
+      <EditGroupModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        group={group}
+        onUpdate={handleGroupUpdate}
+        field={editField}
+      />
     </Layout>
   );
 };

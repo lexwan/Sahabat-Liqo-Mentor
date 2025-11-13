@@ -41,15 +41,16 @@ Route::middleware(['auth:sanctum', 'token.valid'])->group(function () {
     // Mentee
     Route::prefix('mentees')->group(function () {
         Route::get('/', [MenteeController::class, 'index']);
+        Route::get('/{id}', [MenteeController::class, 'show']);
+        Route::put('/{id}', [MenteeController::class, 'update']);
+        Route::put('/{id}/status', [MenteeController::class, 'updateStatus']);
         Route::get('/stats', [MenteeController::class, 'stats']);
         Route::get('/form-options', [MenteeController::class, 'getFormOptions']);
-        Route::get('/{mentee}', [MenteeController::class, 'show']);
         Route::get('/{mentee}/edit', [MenteeController::class, 'edit']);
         
         // hanya admin
         Route::middleware('is_admin')->group(function () {
             Route::post('/', [MenteeController::class, 'store']);
-            Route::put('/{mentee}', [MenteeController::class, 'update']);
             Route::delete('/{mentee}', [MenteeController::class, 'destroy']);
             Route::get('/trashed', [MenteeController::class, 'trashed']);
             Route::post('/restore/{id}', [MenteeController::class, 'restore']);
@@ -101,13 +102,23 @@ Route::middleware(['auth:sanctum', 'token.valid'])->group(function () {
 
     // Dashboard Mentor
     Route::prefix('mentor')->group(function () {
+        Route::get('/profile', [MentorController::class, 'getProfile']);
         Route::get('/groups', [MentorController::class, 'getGroups']);
         Route::post('/groups', [MentorController::class, 'createGroup']);
         Route::get('/groups/{groupId}', [MentorController::class, 'getGroupDetail']);
+        Route::put('/groups/{groupId}', [MentorController::class, 'updateGroup']);
         Route::post('/groups/{groupId}/mentees', [MentorController::class, 'addMentees']);
         Route::patch('/groups/{groupId}/add-mentees', [MentorController::class, 'addExistingMenteesToGroup']);
         Route::put('/groups/{groupId}/move-mentees', [MentorController::class, 'moveMentees']);
-        Route::delete('/mentees/{menteeId}', [MentorController::class, 'deleteMentee']);
+        Route::get('/meetings', [MentorController::class, 'getMeetings']);
+        Route::get('/meetings/trashed', [MentorController::class, 'getTrashedMeetings']);
+        Route::get('/meetings/{meetingId}', [MentorController::class, 'getMeetingDetail']);
+        Route::post('/meetings', [MentorController::class, 'createMeeting']);
+        Route::put('/meetings/{meetingId}', [MentorController::class, 'updateMeeting']);
+        Route::post('/meetings/{meetingId}', [MentorController::class, 'updateMeeting']);
+        Route::delete('/meetings/{meetingId}', [MentorController::class, 'deleteMeeting']);
+        Route::post('/meetings/{meetingId}/restore', [MentorController::class, 'restoreMeeting']);
+
         Route::get('/dashboard/stats', [MentorController::class, 'getDashboardStats']);
         Route::get('/test', function() {
             return response()->json(['message' => 'Mentor routes working']);

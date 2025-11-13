@@ -22,6 +22,13 @@ import MentorDashboard from "./pages/mentor/Dashboard";
 import MentorKelolaKelompok from "./pages/mentor/KelolaKelompok/KelolaKelompok";
 import MentorTambahKelompok from "./pages/mentor/KelolaKelompok/TambahKelompok";
 import MentorTambahMentee from "./pages/mentor/KelolaMentee/TambahMentee";
+import MenteeNonAktif from "./pages/mentor/KelolaMentee/MenteeNonAktif";
+import EditMentee from "./pages/mentor/KelolaMentee/EditMentee";
+import MentorCatatanPertemuan from "./pages/mentor/KelolaPertemuan/CatatanPertemuan";
+import TambahPertemuan from "./pages/mentor/KelolaPertemuan/TambahPertemuan";
+import EditPertemuan from "./pages/mentor/KelolaPertemuan/EditPertemuan";
+import Settings from "./pages/mentor/ProfileMentor/Settings";
+
 
 import ProtectedRoute from "./routes/ProtectedRoute";
 
@@ -201,6 +208,62 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path="/mentor/kelompok/:id/mentee-nonaktif"
+          element={
+            <ProtectedRoute allowedRoles={["mentor"]}>
+              <MenteeNonAktif />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/mentor/kelompok/:id/edit-mentee/:menteeId"
+          element={
+            <ProtectedRoute allowedRoles={["mentor"]}>
+              <EditMentee />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/mentor/catatan-pertemuan"
+          element={
+            <ProtectedRoute allowedRoles={["mentor"]}>
+              <MentorCatatanPertemuan />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/mentor/tambah-pertemuan/:groupId"
+          element={
+            <ProtectedRoute allowedRoles={["mentor"]}>
+              <TambahPertemuan />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/mentor/edit-pertemuan/:meetingId"
+          element={
+            <ProtectedRoute allowedRoles={["mentor"]}>
+              <EditPertemuan />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/mentor/settings"
+          element={
+            <ProtectedRoute allowedRoles={["mentor"]}>
+              <Settings />
+            </ProtectedRoute>
+          }
+        />
+
+
 
 
 

@@ -18,6 +18,12 @@ class Meeting extends Model
         'topic',
         'notes',
         'meeting_type',
+        'photos',
+    ];
+
+    protected $casts = [
+        'photos' => 'array',
+        'meeting_date' => 'date',
     ];
 
     public function group()
