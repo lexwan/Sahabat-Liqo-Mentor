@@ -20,7 +20,7 @@ import RecycleBin from "./pages/superadmin/KelolaAdmin/RecycleBin";
 import Pengumuman from "./pages/superadmin/Pengumuman";
 import MentorDashboard from "./pages/mentor/Dashboard";
 import MentorKelolaKelompok from "./pages/mentor/KelolaKelompok/KelolaKelompok";
-import MentorTambahKelompok from "./pages/mentor/KelolaKelompok/TambahKelompok";
+
 import MentorTambahMentee from "./pages/mentor/KelolaMentee/TambahMentee";
 import MenteeNonAktif from "./pages/mentor/KelolaMentee/MenteeNonAktif";
 import EditMentee from "./pages/mentor/KelolaMentee/EditMentee";
@@ -192,14 +192,7 @@ function App() {
           }
         />
 
-        <Route
-          path="/mentor/kelompok/tambah"
-          element={
-            <ProtectedRoute allowedRoles={["mentor"]}>
-              <MentorTambahKelompok />
-            </ProtectedRoute>
-          }
-        />
+
 
         <Route
           path="/mentor/kelompok/:id/kelola-mentee"

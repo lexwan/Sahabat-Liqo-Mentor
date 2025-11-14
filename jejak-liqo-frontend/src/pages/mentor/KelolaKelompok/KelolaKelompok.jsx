@@ -3,8 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import Layout from "../../../components/mentor/Layout";
 import EditGroupModal from "../../../components/mentor/EditGroupModal";
-import { getMentorGroupDetail } from "../../../api/mentor"
-import { User, Calendar, Users, ArrowLeft, MapPin, Phone, Search, Settings, Edit, Trash2, Plus, BookOpen, Eye, X, UserX } from "lucide-react";
+import { getMentorGroupDetail, deleteGroup } from "../../../api/mentor"
+import { User, Calendar, Users, ArrowLeft, MapPin, Phone, Search, Settings, Edit, Trash2, Plus, BookOpen, Eye, X } from "lucide-react";
 
 const KelolaKelompok = () => {
   const { id } = useParams();
@@ -136,60 +136,25 @@ const KelolaKelompok = () => {
     setGroup(updatedGroup);
   };
 
-  const handleToggleMenteeStatus = async () => {
-    if (!selectedMentee) return;
-    
-    const newStatus = selectedMentee.status === 'Aktif' ? 'Non-Aktif' : 'Aktif';
-    const action = selectedMentee.status === 'Aktif' ? 'nonaktifkan' : 'aktifkan';
-    
-    const confirmToggle = async () => {
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/mentees/${selectedMentee.id}/status`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify({ status: newStatus })
-        });
-        
-        if (response.ok) {
-          const toastId = toast.success(`${selectedMentee.full_name} berhasil di${action}`, { duration: 2000 });
-          setTimeout(() => toast.dismiss(toastId), 2000);
-          setShowMenteeModal(false);
-          fetchGroupDetail();
-        } else {
-          throw new Error('Failed to update status');
-        }
-      } catch (error) {
-        console.error('Error updating mentee status:', error);
-        const toastId = toast.error(`Gagal ${action} mentee`, { duration: 2000 });
-        setTimeout(() => toast.dismiss(toastId), 2000);
-      }
-    };
-
+  const handleDeleteGroup = () => {
     toast((t) => (
       <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col space-y-3">
           <span className="font-medium text-gray-900 dark:text-white">
-            {action === 'nonaktifkan' ? 'Nonaktifkan' : 'Aktifkan'} {selectedMentee.full_name}?
+            Hapus Kelompok?
           </span>
           <span className="text-sm text-gray-600 dark:text-gray-400">
-            Status mentee akan diubah menjadi {newStatus}
+            Kelompok akan dipindahkan ke tempat sampah dan dapat dipulihkan nanti.
           </span>
           <div className="flex space-x-2 justify-center">
             <button
               onClick={() => {
                 toast.dismiss(t.id);
-                confirmToggle();
+                confirmDeleteGroup();
               }}
-              className={`px-4 py-2 text-white rounded-lg text-sm transition-colors ${
-                action === 'nonaktifkan' 
-                  ? 'bg-red-500 hover:bg-red-600' 
-                  : 'bg-green-500 hover:bg-green-600'
-              }`}
+              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm transition-colors"
             >
-              Ya, {action === 'nonaktifkan' ? 'Nonaktifkan' : 'Aktifkan'}
+              Ya, Hapus
             </button>
             <button
               onClick={() => toast.dismiss(t.id)}
@@ -201,7 +166,7 @@ const KelolaKelompok = () => {
         </div>
       </div>
     ), {
-      duration: 2000,
+      duration: Infinity,
       position: 'top-center',
       style: {
         background: 'transparent',
@@ -209,6 +174,21 @@ const KelolaKelompok = () => {
       }
     });
   };
+
+  const confirmDeleteGroup = async () => {
+    try {
+      await deleteGroup(id);
+      const toastId = toast.success('Kelompok berhasil dihapus', { duration: 2000 });
+      setTimeout(() => toast.dismiss(toastId), 2000);
+      navigate('/mentor/dashboard');
+    } catch (error) {
+      console.error('Error deleting group:', error);
+      const toastId = toast.error('Gagal menghapus kelompok', { duration: 2000 });
+      setTimeout(() => toast.dismiss(toastId), 2000);
+    }
+  };
+
+
 
   if (loading) {
     return (
@@ -402,9 +382,6 @@ const KelolaKelompok = () => {
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                   Informasi Kelompok
                 </h2>
-                <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">
-                  {group.description}
-                </p>
                 <div className="space-y-3">
                   <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
                     <Calendar size={14} className="mr-2" />
@@ -418,7 +395,7 @@ const KelolaKelompok = () => {
                     <svg className="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a4 4 0 118 0v4m-4 8a2 2 0 100-4 2 2 0 000 4zm6-8a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
-                    <span>{group.meetings?.length || 0} Pertemuan</span>
+                    <span>{group.meetings_count || 0} Pertemuan</span>
                   </div>
                 </div>
               </div>
@@ -659,15 +636,7 @@ const KelolaKelompok = () => {
               </div>
 
 
-              <div className="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Status Kelompok</h3>
-                  <p className="text-gray-900 dark:text-white">Aktif</p>
-                </div>
-                <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
-                  <Edit size={16} />
-                </button>
-              </div>
+
             </div>
 
 
@@ -675,9 +644,12 @@ const KelolaKelompok = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-medium text-red-600 dark:text-red-400">Hapus Kelompok</h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Tindakan ini tidak dapat dibatalkan</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Kelompok akan dipindahkan ke tempat sampah</p>
                 </div>
-                <button className="flex items-center px-4 py-2 text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded-lg transition-colors">
+                <button 
+                  onClick={handleDeleteGroup}
+                  className="flex items-center px-4 py-2 text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded-lg transition-colors"
+                >
                   <Trash2 size={16} className="mr-2" />
                   Hapus Kelompok
                 </button>
@@ -703,17 +675,7 @@ const KelolaKelompok = () => {
                 >
                   <Edit size={16} className="sm:w-5 sm:h-5" />
                 </button>
-                <button
-                  onClick={handleToggleMenteeStatus}
-                  className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
-                    selectedMentee.status === 'Aktif' 
-                      ? 'text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
-                      : 'text-green-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'
-                  }`}
-                  title={selectedMentee.status === 'Aktif' ? 'Nonaktifkan Mentee' : 'Aktifkan Mentee'}
-                >
-                  <User size={16} className="sm:w-5 sm:h-5" />
-                </button>
+
                 <button
                   onClick={() => setShowMenteeModal(false)}
                   className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg transition-colors"

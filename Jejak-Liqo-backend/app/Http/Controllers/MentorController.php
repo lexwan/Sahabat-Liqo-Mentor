@@ -443,6 +443,7 @@ class MentorController extends Controller
             
             $groups = \App\Models\Group::with(['mentor.profile'])
                 ->where('mentor_id', $mentorId)
+                ->whereNull('deleted_at')
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -470,7 +471,12 @@ class MentorController extends Controller
         try {
             $mentorId = Auth::id();
             
-            $group = \App\Models\Group::with(['mentor.profile', 'mentees'])
+            $group = \App\Models\Group::with([
+                'mentor.profile', 
+                'mentees' => function($query) {
+                    $query->where('status', 'Aktif');
+                }
+            ])
                 ->where('id', $groupId)
                 ->where('mentor_id', $mentorId)
                 ->first();
@@ -486,6 +492,9 @@ class MentorController extends Controller
             if ($group->mentor && $group->mentor->profile) {
                 $group->category = strtolower($group->mentor->profile->gender) === 'akhwat' ? 'akhwat' : 'ikhwan';
             }
+
+            // Add meetings count from database
+            $group->meetings_count = \App\Models\Meeting::where('group_id', $groupId)->count();
 
             return response()->json([
                 'status' => 'success',
@@ -767,7 +776,12 @@ class MentorController extends Controller
                               $q->where('mentor_id', $mentorId);
                           });
                 })
-                ->with(['group', 'attendances.mentee'])
+                ->with([
+                    'group.mentees' => function($query) {
+                        $query->where('status', 'Aktif');
+                    },
+                    'attendances.mentee'
+                ])
                 ->first();
 
             if (!$meeting) {
@@ -777,7 +791,7 @@ class MentorController extends Controller
                 ], 404);
             }
 
-            // Get all mentees in the group with their attendance status
+            // Get only active mentees in the group with their attendance status
             $mentees = $meeting->group->mentees->map(function($mentee) use ($meeting) {
                 $attendance = $meeting->attendances->where('mentee_id', $mentee->id)->first();
                 return [
@@ -1430,6 +1444,141 @@ class MentorController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Gagal mengambil data mentee'
+            ], 500);
+        }
+    }
+
+    public function getGroupAllMentees($groupId)
+    {
+        try {
+            $mentorId = Auth::id();
+            
+            $group = \App\Models\Group::with([
+                'mentor.profile', 
+                'mentees' // Get all mentees without filtering
+            ])
+                ->where('id', $groupId)
+                ->where('mentor_id', $mentorId)
+                ->first();
+
+            if (!$group) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Kelompok tidak ditemukan atau Anda tidak memiliki akses'
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $group
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengambil detail kelompok'
+            ], 500);
+        }
+    }
+
+    public function deleteGroup($groupId)
+    {
+        try {
+            $mentorId = Auth::id();
+            
+            $group = \App\Models\Group::where('id', $groupId)
+                ->where('mentor_id', $mentorId)
+                ->first();
+
+            if (!$group) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Kelompok tidak ditemukan atau Anda tidak memiliki akses'
+                ], 404);
+            }
+
+            DB::beginTransaction();
+            
+            // Set group_id to null for all mentees in this group
+            \App\Models\Mentee::where('group_id', $groupId)
+                ->update(['group_id' => null]);
+            
+            // Soft delete the group
+            $group->delete();
+            
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Kelompok berhasil dihapus'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal menghapus kelompok'
+            ], 500);
+        }
+    }
+
+    public function getTrashedGroups()
+    {
+        try {
+            $mentorId = Auth::id();
+            
+            $groups = \App\Models\Group::onlyTrashed()
+                ->with(['mentor.profile'])
+                ->where('mentor_id', $mentorId)
+                ->orderBy('deleted_at', 'desc')
+                ->get();
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $groups
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengambil data kelompok terhapus'
+            ], 500);
+        }
+    }
+
+    public function restoreGroup($groupId)
+    {
+        try {
+            $mentorId = Auth::id();
+            
+            $group = \App\Models\Group::onlyTrashed()
+                ->where('id', $groupId)
+                ->where('mentor_id', $mentorId)
+                ->first();
+
+            if (!$group) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Kelompok tidak ditemukan'
+                ], 404);
+            }
+
+            DB::beginTransaction();
+            
+            // Restore the group
+            $group->restore();
+            
+            // Note: We don't automatically restore mentees to this group
+            // They remain as "available mentees" and can be manually added back
+            
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Kelompok berhasil dipulihkan. Mentee dapat ditambahkan kembali dari daftar mentee yang tersedia.'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal memulihkan kelompok'
             ], 500);
         }
     }

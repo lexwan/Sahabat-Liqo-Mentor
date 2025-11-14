@@ -24,6 +24,8 @@ const CatatanPertemuan = () => {
   const [trashedReports, setTrashedReports] = useState([]);
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
 
   useEffect(() => {
     if (currentView === 'active') {
@@ -91,6 +93,17 @@ const CatatanPertemuan = () => {
     const matchesFilter = currentView === 'trashed' || filterType === 'all' || report.type === filterType;
     return matchesSearch && matchesFilter;
   });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredReports.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedReports = filteredReports.slice(startIndex, endIndex);
+
+  // Reset to first page when view changes or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [currentView, searchQuery, filterType]);
 
   if (loading) {
     return (
@@ -193,8 +206,9 @@ const CatatanPertemuan = () => {
           </div>
 
           {filteredReports.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredReports.map((report) => (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {paginatedReports.map((report) => (
                 <div
                   key={report.id}
                   className={`border border-gray-200 dark:border-gray-700 rounded-lg p-4 transition-colors ${
@@ -217,9 +231,12 @@ const CatatanPertemuan = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       {/* Meeting Title */}
-                      <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2 leading-tight">
-                        {report.title}
-                      </h3>
+                      <div className="mb-2">
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Materi:</p>
+                        <h3 className="text-base font-semibold text-gray-900 dark:text-white leading-tight">
+                          {report.title}
+                        </h3>
+                      </div>
                       
                       {/* Group Name */}
                       <div className="flex items-center mb-3">
@@ -349,7 +366,48 @@ const CatatanPertemuan = () => {
                   )}
                 </div>
               ))}
-            </div>
+              </div>
+              
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    Menampilkan {startIndex + 1}-{Math.min(endIndex, filteredReports.length)} dari {filteredReports.length} pertemuan
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Sebelumnya
+                    </button>
+                    <div className="flex items-center space-x-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`px-3 py-2 text-sm rounded-lg transition-colors ${
+                            currentPage === page
+                              ? 'bg-blue-600 text-white'
+                              : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Selanjutnya
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">

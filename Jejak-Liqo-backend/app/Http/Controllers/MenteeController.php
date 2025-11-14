@@ -63,26 +63,5 @@ class MenteeController extends Controller
         }
     }
 
-    public function updateStatus(Request $request, $id)
-    {
-        $request->validate([
-            'status' => 'required|in:Aktif,Non-Aktif'
-        ]);
 
-        try {
-            $mentee = Mentee::findOrFail($id);
-            $mentee->update(['status' => $request->status]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Status mentee berhasil diperbarui',
-                'data' => $mentee
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal memperbarui status mentee'
-            ], 500);
-        }
-    }
 }

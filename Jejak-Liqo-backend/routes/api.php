@@ -43,7 +43,7 @@ Route::middleware(['auth:sanctum', 'token.valid'])->group(function () {
         Route::get('/', [MenteeController::class, 'index']);
         Route::get('/{id}', [MenteeController::class, 'show']);
         Route::put('/{id}', [MenteeController::class, 'update']);
-        Route::put('/{id}/status', [MenteeController::class, 'updateStatus']);
+
         Route::get('/stats', [MenteeController::class, 'stats']);
         Route::get('/form-options', [MenteeController::class, 'getFormOptions']);
         Route::get('/{mentee}/edit', [MenteeController::class, 'edit']);
@@ -105,10 +105,14 @@ Route::middleware(['auth:sanctum', 'token.valid'])->group(function () {
         Route::get('/profile', [MentorController::class, 'getProfile']);
         Route::put('/profile', [MentorController::class, 'updateProfile']);
         Route::get('/groups', [MentorController::class, 'getGroups']);
+        Route::get('/groups/trashed', [MentorController::class, 'getTrashedGroups']);
         Route::post('/groups', [MentorController::class, 'createGroup']);
         Route::get('/groups/{groupId}', [MentorController::class, 'getGroupDetail']);
         Route::get('/groups/{groupId}/mentees', [MentorController::class, 'getGroupMentees']);
+        Route::get('/groups/{groupId}/all-mentees', [MentorController::class, 'getGroupAllMentees']);
         Route::put('/groups/{groupId}', [MentorController::class, 'updateGroup']);
+        Route::delete('/groups/{groupId}', [MentorController::class, 'deleteGroup']);
+        Route::post('/groups/{groupId}/restore', [MentorController::class, 'restoreGroup']);
         Route::post('/groups/{groupId}/mentees', [MentorController::class, 'addMentees']);
         Route::patch('/groups/{groupId}/add-mentees', [MentorController::class, 'addExistingMenteesToGroup']);
         Route::put('/groups/{groupId}/move-mentees', [MentorController::class, 'moveMentees']);

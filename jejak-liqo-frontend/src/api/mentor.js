@@ -180,7 +180,41 @@ export const updateMeeting = async (meetingId, meetingData) => {
 
 export const createMeeting = async (meetingData) => {
   try {
-    const response = await api.post('/mentor/meetings', meetingData);
+    const formData = new FormData();
+    
+    // Add basic meeting data
+    formData.append('group_id', meetingData.group_id);
+    formData.append('topic', meetingData.topic);
+    formData.append('meeting_date', meetingData.meeting_date);
+    formData.append('meeting_type', meetingData.meeting_type);
+    formData.append('place', meetingData.place);
+    if (meetingData.notes) {
+      formData.append('notes', meetingData.notes);
+    }
+    
+    // Add photos if any
+    if (meetingData.photos && meetingData.photos.length > 0) {
+      meetingData.photos.forEach((photo, index) => {
+        formData.append('photos[]', photo);
+      });
+    }
+    
+    // Add attendances if any
+    if (meetingData.attendances && meetingData.attendances.length > 0) {
+      meetingData.attendances.forEach((attendance, index) => {
+        formData.append(`attendances[${index}][mentee_id]`, attendance.mentee_id);
+        formData.append(`attendances[${index}][status]`, attendance.status);
+        if (attendance.note) {
+          formData.append(`attendances[${index}][note]`, attendance.note);
+        }
+      });
+    }
+    
+    const response = await api.post('/mentor/meetings', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
     return response.data;
   } catch (error) {
     console.error('Error creating meeting:', error);
@@ -206,6 +240,36 @@ export const removeMenteeFromGroup = async (menteeId) => {
     return response.data;
   } catch (error) {
     console.error('Error removing mentee from group:', error);
+    throw error;
+  }
+};
+
+export const deleteGroup = async (groupId) => {
+  try {
+    const response = await api.delete(`/mentor/groups/${groupId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting group:', error);
+    throw error;
+  }
+};
+
+export const getTrashedGroups = async () => {
+  try {
+    const response = await api.get('/mentor/groups/trashed');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching trashed groups:', error);
+    throw error;
+  }
+};
+
+export const restoreGroup = async (groupId) => {
+  try {
+    const response = await api.post(`/mentor/groups/${groupId}/restore`);
+    return response.data;
+  } catch (error) {
+    console.error('Error restoring group:', error);
     throw error;
   }
 };

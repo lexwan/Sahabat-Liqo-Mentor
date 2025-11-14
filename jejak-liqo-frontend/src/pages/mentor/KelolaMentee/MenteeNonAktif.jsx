@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import Layout from "../../../components/mentor/Layout";
-import { getMentorGroupDetail } from "../../../api/mentor";
+
 import { ArrowLeft, User, Search, Eye, X } from "lucide-react";
 
 const MenteeNonAktif = () => {
@@ -21,8 +21,19 @@ const MenteeNonAktif = () => {
   const fetchGroupDetail = async () => {
     try {
       setLoading(true);
-      const response = await getMentorGroupDetail(id);
-      setGroup(response.data);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/mentor/groups/${id}/all-mentees`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setGroup(data.data);
+      } else {
+        throw new Error('Failed to fetch group detail');
+      }
     } catch (error) {
       console.error('Error fetching group detail:', error);
       toast.error('Gagal memuat detail kelompok');
@@ -37,13 +48,22 @@ const MenteeNonAktif = () => {
     
     const confirmActivate = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/mentees/${selectedMentee.id}/status`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/mentees/${selectedMentee.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
-          body: JSON.stringify({ status: 'Aktif' })
+          body: JSON.stringify({ 
+            full_name: selectedMentee.full_name,
+            nickname: selectedMentee.nickname,
+            phone_number: selectedMentee.phone_number,
+            birth_date: selectedMentee.birth_date,
+            activity_class: selectedMentee.activity_class,
+            hobby: selectedMentee.hobby,
+            address: selectedMentee.address,
+            status: 'Aktif'
+          })
         });
         
         if (response.ok) {
@@ -115,7 +135,9 @@ const MenteeNonAktif = () => {
     );
   }
 
-  const inactiveMentees = group?.mentees?.filter(mentee => mentee.status === 'Non-Aktif') || [];
+  const inactiveMentees = group?.mentees?.filter(mentee => 
+    mentee.status === 'Non-Aktif' || mentee.status === null || mentee.status === undefined
+  ) || [];
   const filteredMentees = inactiveMentees.filter(mentee =>
     mentee.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     mentee.nickname?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -138,7 +160,7 @@ const MenteeNonAktif = () => {
                 Mentee Non-Aktif
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
-                Daftar mentee yang berstatus non-aktif dalam kelompok {group?.group_name}
+                Daftar mentee yang berstatus non-aktif atau belum diaktifkan dalam kelompok {group?.group_name}
               </p>
             </div>
             <div className="relative">
@@ -179,8 +201,12 @@ const MenteeNonAktif = () => {
                           <p className="text-xs text-gray-500 dark:text-gray-400">
                             {mentee.nickname}
                           </p>
-                          <span className="inline-block mt-1 px-2 py-1 text-xs bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 rounded-full">
-                            Non-Aktif
+                          <span className={`inline-block mt-1 px-2 py-1 text-xs rounded-full ${
+                            mentee.status === 'Non-Aktif' 
+                              ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                              : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
+                          }`}>
+                            {mentee.status === 'Non-Aktif' ? 'Non-Aktif' : 'Belum Diaktifkan'}
                           </span>
                         </div>
                         <button 

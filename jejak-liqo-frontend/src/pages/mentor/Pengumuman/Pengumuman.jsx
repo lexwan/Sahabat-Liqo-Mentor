@@ -280,9 +280,9 @@ const Pengumuman = () => {
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {loading ? (
-            <div className={`rounded-2xl shadow-md p-8 text-center border ${
+            <div className={`col-span-full rounded-2xl shadow-md p-8 text-center border ${
               isDark 
                 ? 'bg-gray-800 border-gray-700' 
                 : 'bg-white border-gray-100'
@@ -382,7 +382,6 @@ const Pengumuman = () => {
                   
                   <div className="flex items-center space-x-2 text-sm text-orange-500">
                     <Eye size={16} />
-                    <span className="font-medium">Baca Selengkapnya</span>
                   </div>
                 </div>
               </motion.div>
@@ -391,7 +390,7 @@ const Pengumuman = () => {
         </div>
 
         {filteredAnnouncements.length === 0 && !loading && (
-          <div className={`rounded-2xl shadow-md p-12 text-center border ${
+          <div className={`col-span-full rounded-2xl shadow-md p-12 text-center border ${
             isDark 
               ? 'bg-gray-800 border-gray-700' 
               : 'bg-white border-gray-100'

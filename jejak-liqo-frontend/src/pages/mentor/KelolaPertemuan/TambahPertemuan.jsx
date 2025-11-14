@@ -72,12 +72,14 @@ const TambahPertemuan = () => {
     if (!groupId) return;
     try {
       const data = await getMentorGroupDetail(groupId);
-      const menteesWithStatus = (data.data?.mentees || []).map(mentee => ({
-        ...mentee,
-        attendance_status: 'hadir',
-        attendance_note: ''
-      }));
-      setMentees(menteesWithStatus);
+      const activeMentees = (data.data?.mentees || [])
+        .filter(mentee => mentee.status === 'Aktif')
+        .map(mentee => ({
+          ...mentee,
+          attendance_status: 'hadir',
+          attendance_note: ''
+        }));
+      setMentees(activeMentees);
     } catch (error) {
       console.error('Error fetching mentees:', error);
     }
