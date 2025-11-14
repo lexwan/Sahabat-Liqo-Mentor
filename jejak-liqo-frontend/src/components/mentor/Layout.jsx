@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Users, Menu, X, Sun, Moon, LogOut, User, ChevronDown, Plus, FileText, Bell, UserCircle, Settings } from 'lucide-react';
+import { Home, Users, Menu, X, LogOut, User, ChevronDown, Plus, FileText, Bell, UserCircle, Settings } from 'lucide-react';
 import { logout } from '../../api/auth';
 import toast from 'react-hot-toast';
 import LogoutConfirmModal from '../ui/LogoutConfirmModal';
 import logoLight from '../../assets/images/logo/LogoShaf_Terang.png';
 import logoDark from '../../assets/images/logo/LogoShaf_Gelap.png';
 
-const Layout = ({ children, activeMenu }) => {
-  const { isDark, toggleTheme } = useTheme();
+const Layout = ({ children, /*activeMenu*/ }) => {
+  const { isDark } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -23,7 +23,28 @@ const Layout = ({ children, activeMenu }) => {
     if (userData) {
       setUser(JSON.parse(userData));
     }
+    // Fetch fresh profile data
+    fetchUserProfile();
   }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/mentor/profile`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        setUser(data.data);
+        localStorage.setItem('user', JSON.stringify(data.data));
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
 
   const menuItems = [
     { name: 'Dashboard', icon: Home, path: '/mentor/dashboard' },
@@ -97,15 +118,7 @@ const Layout = ({ children, activeMenu }) => {
               )}
             </div>
             
-            <button
-              onClick={toggleTheme}
-              className={`p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`}
-            >
-              {isDark ? 
-                <Sun size={18} className="text-gray-600 dark:text-gray-300" /> : 
-                <Moon size={18} className="text-gray-600" />
-              }
-            </button>
+
             
             {/* Profile Dropdown */}
             <div className="relative hidden lg:block">
@@ -113,8 +126,16 @@ const Layout = ({ children, activeMenu }) => {
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
                 className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`}
               >
-                <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center">
-                  <User size={16} className="text-white" />
+                <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center overflow-hidden">
+                  {user?.profile?.profile_picture ? (
+                    <img 
+                      src={`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/storage/${user.profile.profile_picture}`}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User size={16} className="text-white" />
+                  )}
                 </div>
                 <div className="text-left">
                   <p className={`text-sm font-medium ${isDark ? 'text-gray-900 dark:text-white' : 'text-gray-900'}`}>
@@ -133,7 +154,7 @@ const Layout = ({ children, activeMenu }) => {
               {showProfileMenu && (
                 <div className={`absolute right-0 mt-2 w-48 sm:w-56 md:w-64 lg:w-48 ${
                   isDark ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700' : 'bg-white border-gray-200'
-                } border rounded-lg shadow-lg py-1 z-50`}>
+                } border rounded-lg shadow-lg py-1 z-[60]`}>
                   <div className="px-3 sm:px-4 py-2 border-b border-gray-200 dark:border-gray-700">
                     <p className={`text-xs sm:text-sm font-medium truncate ${isDark ? 'text-gray-900 dark:text-white' : 'text-gray-900'}`}>
                       {user?.profile?.name || user?.name || 'Mentor'}
@@ -143,11 +164,13 @@ const Layout = ({ children, activeMenu }) => {
                     </p>
                   </div>
                   <button
-                    onClick={() => {
-                      navigate('/mentor/settings');
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       setShowProfileMenu(false);
+                      navigate('/mentor/settings');
                     }}
-                    className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center space-x-2"
+                    className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center space-x-2 cursor-pointer"
                   >
                     <Settings size={14} className="sm:w-4 sm:h-4" />
                     <span>Settings</span>
@@ -281,8 +304,16 @@ const Layout = ({ children, activeMenu }) => {
                   : 'text-gray-600 hover:text-gray-800'
               }`}
             >
-              <div className="w-6 h-6 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center mb-1">
-                <User size={14} className="text-white" />
+              <div className="w-6 h-6 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center mb-1 overflow-hidden">
+                {user?.profile?.profile_picture ? (
+                  <img 
+                    src={`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/storage/${user.profile.profile_picture}`}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User size={14} className="text-white" />
+                )}
               </div>
               <span className="text-xs font-medium">Profile</span>
             </button>
@@ -291,7 +322,7 @@ const Layout = ({ children, activeMenu }) => {
             {showProfileMenu && (
               <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-40 xs:w-44 sm:w-48 ${
                 isDark ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700' : 'bg-white border-gray-200'
-              } border rounded-lg shadow-lg py-1 z-[60]`}>
+              } border rounded-lg shadow-lg py-1 z-[80]`}>
                 <div className="px-2 xs:px-3 sm:px-4 py-2 border-b border-gray-200 dark:border-gray-700">
                   <p className={`text-xs xs:text-sm font-medium truncate ${isDark ? 'text-gray-900 dark:text-white' : 'text-gray-900'}`}>
                     {user?.profile?.name || user?.name || 'Mentor'}
@@ -301,16 +332,11 @@ const Layout = ({ children, activeMenu }) => {
                   </p>
                 </div>
                 <button
-                  type="button"
-                  onTouchStart={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('Settings button clicked - navigating to /mentor/settings');
-                    window.location.href = '/mentor/settings';
+                    setShowProfileMenu(false);
+                    navigate('/mentor/settings');
                   }}
                   className="w-full text-left px-2 xs:px-3 sm:px-4 py-2 text-xs xs:text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center space-x-1 xs:space-x-2 cursor-pointer"
                 >

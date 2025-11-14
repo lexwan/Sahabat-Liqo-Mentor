@@ -28,6 +28,7 @@ import MentorCatatanPertemuan from "./pages/mentor/KelolaPertemuan/CatatanPertem
 import TambahPertemuan from "./pages/mentor/KelolaPertemuan/TambahPertemuan";
 import EditPertemuan from "./pages/mentor/KelolaPertemuan/EditPertemuan";
 import Settings from "./pages/mentor/ProfileMentor/Settings";
+import MentorPengumuman from "./pages/mentor/Pengumuman/Pengumuman";
 
 
 import ProtectedRoute from "./routes/ProtectedRoute";
@@ -259,6 +260,15 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={["mentor"]}>
               <Settings />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/mentor/pengumuman"
+          element={
+            <ProtectedRoute allowedRoles={["mentor"]}>
+              <MentorPengumuman />
             </ProtectedRoute>
           }
         />

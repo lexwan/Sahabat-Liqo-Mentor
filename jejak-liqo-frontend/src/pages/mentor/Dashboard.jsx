@@ -112,12 +112,12 @@ const MentorDashboard = () => {
                       {group.mentor?.profile?.full_name || 'Mentor'}
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
                     {group.mentor?.profile?.profile_picture ? (
                       <img
-                        src={group.mentor.profile.profile_picture}
+                        src={`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/storage/${group.mentor.profile.profile_picture}`}
                         alt={group.mentor.profile.full_name}
-                        className="w-12 h-12 rounded-full object-cover"
+                        className="w-full h-full object-cover"
                       />
                     ) : (
                       <User size={20} className="text-white" />

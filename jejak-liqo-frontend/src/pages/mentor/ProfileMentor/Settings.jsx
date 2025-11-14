@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, User, Lock, Bell, Moon, Sun } from 'lucide-react';
+import { LogOut, User, Bell, Moon, Sun } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { logout } from '../../../api/auth';
 import Layout from '../../../components/mentor/Layout';
 import LogoutConfirmModal from '../../../components/ui/LogoutConfirmModal';
+import EditProfileModal from '../../../components/mentor/EditProfileModal';
 
 const Settings = () => {
   const navigate = useNavigate();
   const { isDark, toggleTheme } = useTheme();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -105,24 +107,16 @@ const Settings = () => {
                     <p className="text-gray-900 dark:text-white">{profile.profile?.address || 'Tidak ada data'}</p>
                   </div>
                 </div>
-                <button className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                <button 
+                  onClick={() => setShowEditModal(true)}
+                  className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
                   Edit Profile
                 </button>
               </div>
             ) : (
               <p className="text-gray-500 dark:text-gray-400">Gagal memuat data profile</p>
             )}
-          </div>
-
-          {/* Security Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
-              <Lock size={20} className="mr-2" />
-              Security
-            </h2>
-            <button className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-              Change Password
-            </button>
           </div>
 
           {/* Preferences Section */}
@@ -159,10 +153,6 @@ const Settings = () => {
 
           {/* Logout Section */}
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
-              <LogOut size={20} className="mr-2" />
-              Account
-            </h2>
             <button
               onClick={() => setShowLogoutModal(true)}
               className="w-full sm:w-auto px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center justify-center space-x-2"
@@ -173,6 +163,14 @@ const Settings = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        profile={profile}
+        onProfileUpdate={fetchProfile}
+      />
 
       {/* Logout Confirmation Modal */}
       <LogoutConfirmModal

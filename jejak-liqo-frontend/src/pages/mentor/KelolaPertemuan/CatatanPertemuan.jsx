@@ -127,14 +127,14 @@ const CatatanPertemuan = () => {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
             <button 
               onClick={() => navigate(`/mentor/tambah-pertemuan/${groupId}`)}
-              className="flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              className="flex items-center justify-center px-4 py-2 bg-white/80 dark:bg-gray-800/80 hover:bg-white/90 dark:hover:bg-gray-800/90 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-700 rounded-lg transition-colors"
             >
               <Plus size={16} className="mr-2" />
               Tambah Pertemuan
             </button>
             <button 
               onClick={() => setCurrentView(currentView === 'active' ? 'trashed' : 'active')}
-              className="flex items-center justify-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+              className="flex items-center justify-center px-4 py-2 bg-white/80 dark:bg-gray-800/80 hover:bg-white/90 dark:hover:bg-gray-800/90 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-700 rounded-lg transition-colors"
             >
               <Trash2 size={16} className="mr-2" />
               {currentView === 'active' ? 'Terhapus' : 'Kembali'}
@@ -203,86 +203,98 @@ const CatatanPertemuan = () => {
                       : 'bg-gray-50 dark:bg-gray-700/50'
                   }`}
                 >
-                  <div className="flex items-start space-x-3 mb-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                  <div className="flex items-start space-x-3 mb-4">
+                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
                       report.type === 'offline' ? 'bg-green-100 dark:bg-green-900/30' :
                       report.type === 'online' ? 'bg-purple-100 dark:bg-purple-900/30' :
                       'bg-orange-100 dark:bg-orange-900/30'
                     }`}>
-                      <FileText size={16} className={`${
+                      <FileText size={20} className={`${
                         report.type === 'offline' ? 'text-green-600 dark:text-green-400' :
                         report.type === 'online' ? 'text-purple-600 dark:text-purple-400' :
                         'text-orange-600 dark:text-orange-400'
                       }`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                          {report.title}
-                        </h3>
-                        <span className={`px-2 py-1 text-xs rounded-full flex-shrink-0 ${
-                          report.type === 'offline' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
-                          report.type === 'online' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' :
-                          'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
-                        }`}>
-                          {report.type || 'offline'}
+                      {/* Meeting Title */}
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2 leading-tight">
+                        {report.title}
+                      </h3>
+                      
+                      {/* Group Name */}
+                      <div className="flex items-center mb-3">
+                        <Users size={14} className="mr-2 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+                          {report.group_name}
                         </span>
-                      </div>
-                      <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
-                        <div className="flex items-center">
-                          <Users size={12} className="mr-1" />
-                          <span className="truncate">{report.group_name}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <Calendar size={12} className="mr-1" />
-                          <span>{new Date(report.meeting_date || report.created_at).toLocaleDateString('id-ID')}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <MapPin size={12} className="mr-1" />
-                          <span className="truncate">{report.location || 'Online'}</span>
-                        </div>
-                        {currentView === 'trashed' && (
-                          <div className="text-red-500">
-                            Dihapus: {new Date(report.deleted_at).toLocaleDateString('id-ID')}
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
                   
-                  {/* Attendance Cards */}
-                  <div className="mb-3">
-                    <h4 className="text-xs font-medium text-gray-900 dark:text-white mb-2">Kehadiran</h4>
-                    {report.attendance ? (
-                      <div className="grid grid-cols-4 gap-1">
-                        <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-2 text-center">
-                          <CheckCircle size={12} className="text-green-600 dark:text-green-400 mx-auto mb-1" />
-                          <p className="text-xs text-green-600 dark:text-green-400">Hadir</p>
-                          <p className="text-xs font-semibold text-green-600 dark:text-green-400">{report.attendance.hadir || 0}</p>
-                        </div>
-                        <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-2 text-center">
-                          <AlertTriangle size={12} className="text-yellow-600 dark:text-yellow-400 mx-auto mb-1" />
-                          <p className="text-xs text-yellow-600 dark:text-yellow-400">Sakit</p>
-                          <p className="text-xs font-semibold text-yellow-600 dark:text-yellow-400">{report.attendance.sakit || 0}</p>
-                        </div>
-                        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 text-center">
-                          <AlertCircle size={12} className="text-blue-600 dark:text-blue-400 mx-auto mb-1" />
-                          <p className="text-xs text-blue-600 dark:text-blue-400">Izin</p>
-                          <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">{report.attendance.izin || 0}</p>
-                        </div>
-                        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-2 text-center">
-                          <XCircle size={12} className="text-red-600 dark:text-red-400 mx-auto mb-1" />
-                          <p className="text-xs text-red-600 dark:text-red-400">Alpha</p>
-                          <p className="text-xs font-semibold text-red-600 dark:text-red-400">{report.attendance.alpha || 0}</p>
-                        </div>
+                  {/* Meeting Details with Gap */}
+                  <div className="space-y-2 mb-4 pt-2 border-t border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                      <Calendar size={14} className="mr-2 flex-shrink-0" />
+                      <span className="font-medium">
+                        {new Date(report.meeting_date || report.created_at).toLocaleDateString('id-ID', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                      <MapPin size={14} className="mr-2 flex-shrink-0" />
+                      <span className="truncate font-medium">
+                        {report.location || (report.type === 'online' ? 'Meeting Online' : 'Lokasi tidak ditentukan')}
+                      </span>
+                    </div>
+                    {currentView === 'trashed' && (
+                      <div className="flex items-center text-sm text-red-500 dark:text-red-400">
+                        <Trash2 size={14} className="mr-2 flex-shrink-0" />
+                        <span className="font-medium">
+                          Dihapus: {new Date(report.deleted_at).toLocaleDateString('id-ID')}
+                        </span>
                       </div>
-                    ) : (
-                      <div className="text-center py-2">
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Belum ada data kehadiran</p>
-                        <p className="text-xs text-gray-400 dark:text-gray-500">Tambahkan kehadiran untuk melihat statistik</p>
-                      </div>
-                    )
-                  }</div>
+                    )}
+                  </div>
+                  
+                  {/* Attendance Cards - Only show for active view */}
+                  {currentView === 'active' && (
+                    <div className="mb-3">
+                      <h4 className="text-xs font-medium text-gray-900 dark:text-white mb-2">Kehadiran</h4>
+                      {report.attendance ? (
+                        <div className="grid grid-cols-4 gap-1">
+                          <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-2 text-center">
+                            <CheckCircle size={12} className="text-green-600 dark:text-green-400 mx-auto mb-1" />
+                            <p className="text-xs text-green-600 dark:text-green-400">Hadir</p>
+                            <p className="text-xs font-semibold text-green-600 dark:text-green-400">{report.attendance.hadir || 0}</p>
+                          </div>
+                          <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-2 text-center">
+                            <AlertTriangle size={12} className="text-yellow-600 dark:text-yellow-400 mx-auto mb-1" />
+                            <p className="text-xs text-yellow-600 dark:text-yellow-400">Sakit</p>
+                            <p className="text-xs font-semibold text-yellow-600 dark:text-yellow-400">{report.attendance.sakit || 0}</p>
+                          </div>
+                          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 text-center">
+                            <AlertCircle size={12} className="text-blue-600 dark:text-blue-400 mx-auto mb-1" />
+                            <p className="text-xs text-blue-600 dark:text-blue-400">Izin</p>
+                            <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">{report.attendance.izin || 0}</p>
+                          </div>
+                          <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-2 text-center">
+                            <XCircle size={12} className="text-red-600 dark:text-red-400 mx-auto mb-1" />
+                            <p className="text-xs text-red-600 dark:text-red-400">Alpha</p>
+                            <p className="text-xs font-semibold text-red-600 dark:text-red-400">{report.attendance.alpha || 0}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-2">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Belum ada data kehadiran</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500">Tambahkan kehadiran untuk melihat statistik</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   
                   {/* Action Buttons */}
                   {currentView === 'active' ? (
@@ -328,10 +340,10 @@ const CatatanPertemuan = () => {
                           setReportToDelete(report);
                           setShowRestoreModal(true);
                         }}
-                        className="flex items-center px-3 py-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors text-sm"
+                        className="flex items-center px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-md"
                       >
-                        <RotateCcw size={14} className="mr-2" />
-                        Pulihkan
+                        <RotateCcw size={16} className="mr-2" />
+                        Pulihkan Pertemuan
                       </button>
                     </div>
                   )}
@@ -390,7 +402,10 @@ const CatatanPertemuan = () => {
                 {/* Photo Preview */}
                 {!loadingDetail && meetingDetail && (
                   <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Foto Pertemuan</h3>
+                    <div className="flex items-center mb-3">
+                      <Eye size={20} className="mr-2 text-green-600 dark:text-green-400" />
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">Foto Pertemuan</h3>
+                    </div>
                     {meetingDetail.photos && meetingDetail.photos.length > 0 ? (
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {meetingDetail.photos.map((photo, index) => (
@@ -416,7 +431,10 @@ const CatatanPertemuan = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Group Info Card */}
                   <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Informasi Kelompok</h3>
+                    <div className="flex items-center mb-3">
+                      <Users size={20} className="mr-2 text-blue-600 dark:text-blue-400" />
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">Informasi Kelompok</h3>
+                    </div>
                     <div className="space-y-2">
                       <div className="flex items-center">
                         <Users size={16} className="mr-2 text-gray-500" />
@@ -439,7 +457,10 @@ const CatatanPertemuan = () => {
 
                   {/* Meeting Details Card */}
                   <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Detail Pertemuan</h3>
+                    <div className="flex items-center mb-3">
+                      <FileText size={20} className="mr-2 text-green-600 dark:text-green-400" />
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">Detail Pertemuan</h3>
+                    </div>
                     <div className="space-y-2">
                       <div className="flex items-center">
                         <Calendar size={16} className="mr-2 text-gray-500" />
@@ -457,7 +478,10 @@ const CatatanPertemuan = () => {
 
                 {/* Attendance Summary */}
                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Ringkasan Kehadiran</h3>
+                  <div className="flex items-center mb-4">
+                    <CheckCircle size={20} className="mr-2 text-blue-600 dark:text-blue-400" />
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">Ringkasan Kehadiran</h3>
+                  </div>
                   {selectedReport.attendance ? (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div className="bg-white dark:bg-gray-800 rounded-lg p-3 text-center">

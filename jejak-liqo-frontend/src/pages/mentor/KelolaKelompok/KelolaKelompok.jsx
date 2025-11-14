@@ -18,6 +18,10 @@ const KelolaKelompok = () => {
   const [showAddMenteeDropdown, setShowAddMenteeDropdown] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editField, setEditField] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({});
+  const [mentees, setMentees] = useState([]);
+  const itemsPerPage = 5;
 
 
   const getGroupHeaderImage = (groupId) => {
@@ -36,6 +40,12 @@ const KelolaKelompok = () => {
     fetchGroupDetail();
   }, [id]);
 
+  useEffect(() => {
+    if (group && activeTab === 'mentee') {
+      fetchMentees();
+    }
+  }, [currentPage, searchQuery, group, activeTab]);
+
   const fetchGroupDetail = async () => {
     try {
       setLoading(true);
@@ -47,6 +57,30 @@ const KelolaKelompok = () => {
       setGroup(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMentees = async () => {
+    try {
+      const params = {
+        page: currentPage,
+        per_page: itemsPerPage
+      };
+      if (searchQuery) params.search = searchQuery;
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/mentor/groups/${id}/mentees?${new URLSearchParams(params)}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setMentees(data.data || []);
+        setPagination(data.pagination || {});
+      }
+    } catch (error) {
+      console.error('Error fetching mentees:', error);
     }
   };
 
@@ -423,9 +457,20 @@ const KelolaKelompok = () => {
               </h2>
               <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-6">
                 <div className="flex items-start space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                    <User size={16} className="text-white" />
-                  </div>
+                  {group.mentor?.profile?.profile_picture ? (
+                    <img
+                      src={`${import.meta.env.VITE_API_URL.replace('/api', '')}/storage/${group.mentor.profile.profile_picture}`}
+                      alt={group.mentor.profile.full_name}
+                      className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                      onError={(e) => {
+                        console.log('Image load error:', e.target.src);
+                      }}
+                    />
+                  ) : (
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                      <User size={16} className="text-white" />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-medium text-gray-900 dark:text-white">
                       {group.mentor?.profile?.full_name || 'Mentor'}
@@ -445,11 +490,7 @@ const KelolaKelompok = () => {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Daftar Mentee ({group.mentees?.filter(mentee => 
-                    (mentee.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    mentee.nickname?.toLowerCase().includes(searchQuery.toLowerCase())) &&
-                    mentee.status === 'Aktif'
-                  ).length || 0})
+                  Daftar Mentee ({pagination.total || 0})
                 </h2>
                 <button
                   onClick={() => navigate(`/mentor/kelompok/${id}/mentee-nonaktif`)}
@@ -459,50 +500,81 @@ const KelolaKelompok = () => {
                 </button>
               </div>
             
-            {group.mentees?.filter(mentee => 
-              (mentee.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              mentee.nickname?.toLowerCase().includes(searchQuery.toLowerCase())) &&
-              mentee.status === 'Aktif'
-            ).length > 0 ? (
-              <div className="grid grid-cols-1 gap-4">
-                {group.mentees.filter(mentee => 
-                  (mentee.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  mentee.nickname?.toLowerCase().includes(searchQuery.toLowerCase())) &&
-                  mentee.status === 'Aktif'
-                ).map((mentee) => (
-                  <div
-                    key={mentee.id}
-                    className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    <div className="flex items-start space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center flex-shrink-0">
-                        <User size={16} className="text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                              {mentee.full_name}
-                            </h3>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {mentee.nickname}
-                            </p>
+            {mentees.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 gap-4">
+                  {mentees.map((mentee, index) => (
+                    <div
+                      key={mentee.id}
+                      className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <div className="flex items-start space-x-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center flex-shrink-0">
+                          <span className="text-white font-medium text-sm">
+                            {(currentPage - 1) * itemsPerPage + index + 1}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                                {mentee.full_name}
+                              </h3>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {mentee.nickname}
+                              </p>
+                            </div>
+                            <button 
+                              onClick={() => {
+                                setSelectedMentee(mentee);
+                                setShowMenteeModal(true);
+                              }}
+                              className="p-1.5 sm:p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors ml-2 flex-shrink-0"
+                            >
+                              <Eye size={14} className="sm:w-4 sm:h-4" />
+                            </button>
                           </div>
-                          <button 
-                            onClick={() => {
-                              setSelectedMentee(mentee);
-                              setShowMenteeModal(true);
-                            }}
-                            className="p-1.5 sm:p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors ml-2 flex-shrink-0"
-                          >
-                            <Eye size={14} className="sm:w-4 sm:h-4" />
-                          </button>
                         </div>
                       </div>
                     </div>
+                  ))}
+                </div>
+                
+                {pagination.last_page > 1 && (
+                  <div className="mt-6 flex items-center justify-between">
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      Halaman {pagination.current_page} dari {pagination.last_page}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setCurrentPage(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className={`px-3 py-1 rounded-lg text-sm ${
+                          currentPage === 1
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-blue-500 text-white hover:bg-blue-600'
+                        }`}
+                      >
+                        Previous
+                      </button>
+                      <span className="px-3 py-1 text-sm text-gray-700 dark:text-gray-300">
+                        {currentPage}
+                      </span>
+                      <button
+                        onClick={() => setCurrentPage(currentPage + 1)}
+                        disabled={currentPage === pagination.last_page}
+                        className={`px-3 py-1 rounded-lg text-sm ${
+                          currentPage === pagination.last_page
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-blue-500 text-white hover:bg-blue-600'
+                        }`}
+                      >
+                        Next
+                      </button>
+                    </div>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             ) : (
               <div className="text-center py-8">
                 <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">

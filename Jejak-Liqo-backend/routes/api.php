@@ -103,9 +103,11 @@ Route::middleware(['auth:sanctum', 'token.valid'])->group(function () {
     // Dashboard Mentor
     Route::prefix('mentor')->group(function () {
         Route::get('/profile', [MentorController::class, 'getProfile']);
+        Route::put('/profile', [MentorController::class, 'updateProfile']);
         Route::get('/groups', [MentorController::class, 'getGroups']);
         Route::post('/groups', [MentorController::class, 'createGroup']);
         Route::get('/groups/{groupId}', [MentorController::class, 'getGroupDetail']);
+        Route::get('/groups/{groupId}/mentees', [MentorController::class, 'getGroupMentees']);
         Route::put('/groups/{groupId}', [MentorController::class, 'updateGroup']);
         Route::post('/groups/{groupId}/mentees', [MentorController::class, 'addMentees']);
         Route::patch('/groups/{groupId}/add-mentees', [MentorController::class, 'addExistingMenteesToGroup']);
@@ -120,6 +122,7 @@ Route::middleware(['auth:sanctum', 'token.valid'])->group(function () {
         Route::post('/meetings/{meetingId}/restore', [MentorController::class, 'restoreMeeting']);
 
         Route::get('/dashboard/stats', [MentorController::class, 'getDashboardStats']);
+        Route::get('/announcements', [MentorController::class, 'getAnnouncements']);
         Route::get('/test', function() {
             return response()->json(['message' => 'Mentor routes working']);
         });

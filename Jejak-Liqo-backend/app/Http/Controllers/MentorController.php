@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\MentorStoreRequest;
 use App\Http\Requests\MentorUpdateRequest;
 use App\Http\Resources\MentorResource;
@@ -1267,6 +1268,168 @@ class MentorController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Gagal mengambil data profile'
+            ], 500);
+        }
+    }
+
+    public function updateProfile(Request $request)
+    {
+        try {
+            \Log::info('Update profile request:', $request->all());
+            \Log::info('Has file:', ['has_file' => $request->hasFile('profile_picture')]);
+            
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'nickname' => 'nullable|string|max:255',
+                'phone_number' => 'nullable|string|max:20',
+                'job' => 'nullable|string|max:255',
+                'address' => 'nullable|string',
+                'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:10240'
+            ]);
+
+            $user = Auth::user();
+            
+            // Ensure profile exists
+            if (!$user->profile) {
+                Profile::create([
+                    'user_id' => $user->id,
+                    'full_name' => $request->name,
+                    'status' => 'Aktif'
+                ]);
+                $user->load('profile');
+            }
+
+            $profileData = [
+                'full_name' => $request->name,
+                'nickname' => $request->nickname,
+                'phone_number' => $request->phone_number,
+                'job' => $request->job,
+                'address' => $request->address
+            ];
+
+            // Handle profile picture upload
+            if ($request->hasFile('profile_picture')) {
+                // Delete old profile picture if exists
+                if ($user->profile->profile_picture) {
+                    \Storage::disk('public')->delete($user->profile->profile_picture);
+                }
+                $profileData['profile_picture'] = $request->file('profile_picture')->store('profile_pictures', 'public');
+            }
+
+            $user->profile->update($profileData);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Profile berhasil diperbarui',
+                'data' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'profile' => [
+                        'name' => $user->profile->full_name,
+                        'nickname' => $user->profile->nickname,
+                        'phone_number' => $user->profile->phone_number,
+                        'gender' => $user->profile->gender,
+                        'job' => $user->profile->job,
+                        'address' => $user->profile->address,
+                        'profile_picture' => $user->profile->profile_picture
+                    ]
+                ]
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Validation error:', $e->errors());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Data tidak valid',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Profile update error:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal memperbarui profile: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getAnnouncements(Request $request)
+    {
+        try {
+            $perPage = $request->get('per_page', 10);
+            $page = $request->get('page', 1);
+            
+            $announcements = \App\Models\Announcement::with('user')
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
+            
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'data' => $announcements->items(),
+                    'total' => $announcements->total(),
+                    'current_page' => $announcements->currentPage(),
+                    'last_page' => $announcements->lastPage(),
+                    'per_page' => $announcements->perPage()
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengambil data pengumuman'
+            ], 500);
+        }
+    }
+
+    public function getGroupMentees(Request $request, $groupId)
+    {
+        try {
+            $mentorId = Auth::id();
+            
+            // Verify group belongs to mentor
+            $group = \App\Models\Group::where('id', $groupId)
+                ->where('mentor_id', $mentorId)
+                ->first();
+
+            if (!$group) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Kelompok tidak ditemukan atau Anda tidak memiliki akses'
+                ], 404);
+            }
+
+            $perPage = $request->get('per_page', 5);
+            $search = $request->get('search');
+            
+            $query = \App\Models\Mentee::where('group_id', $groupId)
+                ->where('status', 'Aktif');
+            
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('full_name', 'like', "%{$search}%")
+                      ->orWhere('nickname', 'like', "%{$search}%");
+                });
+            }
+            
+            $mentees = $query->orderBy('full_name', 'asc')->paginate($perPage);
+            
+            return response()->json([
+                'status' => 'success',
+                'data' => $mentees->items(),
+                'pagination' => [
+                    'current_page' => $mentees->currentPage(),
+                    'last_page' => $mentees->lastPage(),
+                    'per_page' => $mentees->perPage(),
+                    'total' => $mentees->total(),
+                    'from' => $mentees->firstItem(),
+                    'to' => $mentees->lastItem()
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengambil data mentee'
             ], 500);
         }
     }
